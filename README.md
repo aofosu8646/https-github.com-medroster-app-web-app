@@ -7,7 +7,7 @@ A chat bubble for the MedRoster website. It answers common questions about MedRo
 | File | What it does |
 |---|---|
 | `faq.js` | The questions and answers. **Edit this file to change what the bot knows.** |
-| `server.js` | Small Node server. Holds the API key and calls Claude. |
+| `server.js` | Small Node server. Holds the OpenAI API key and calls the OpenAI API. |
 | `public/widget.js` | The chat bubble that goes on the website. |
 | `public/index.html` | Demo page showing the bubble. |
 | `.env.example` | Settings template. |
@@ -16,7 +16,7 @@ A chat bubble for the MedRoster website. It answers common questions about MedRo
 
 ```bash
 npm install
-cp .env.example .env        # paste your Anthropic API key into .env
+cp .env.example .env        # paste your OpenAI API key into .env
 # for local testing, set ALLOWED_ORIGINS= (empty)
 npm start
 ```
@@ -30,7 +30,7 @@ Any Node host works: Render, Railway, Fly.io, a VPS.
 1. Push this folder to a GitHub repo.
 2. Create a new web service from it. Build: `npm install`. Start: `npm start`.
 3. Set environment variables:
-   - `ANTHROPIC_API_KEY`: from console.anthropic.com
+   - `OPENAI_API_KEY`: from platform.openai.com/api-keys
    - `ALLOWED_ORIGINS`: your website address(es), comma-separated, e.g. `https://yoursite.com,https://www.yoursite.com`
 4. Check `https://YOUR-BOT-HOST/api/health` shows `"live":true`.
 
@@ -55,5 +55,6 @@ Edit `faq.js`, then redeploy. Each entry has a category, a question and an answe
 - API key stays on the server; the browser never sees it.
 - Only the sites in `ALLOWED_ORIGINS` can use the bot.
 - 20 messages per minute per visitor; messages capped at 1,000 characters; last 12 messages kept per request.
-- Answers capped at 400 tokens. Model: `claude-haiku-5-5` (fast, low cost). Change with `MODEL`.
+- Model: `gpt-5.4-mini` (fast, low cost). Change with `MODEL`. `REASONING_EFFORT` defaults to `low`; set it empty for non-reasoning models such as `gpt-4.1-mini`, which reject the parameter.
+- Output capped at `MAX_OUTPUT_TOKENS` (default 1,200, reasoning tokens included). The prompt keeps replies to 1–4 sentences.
 - No chat history is stored.
