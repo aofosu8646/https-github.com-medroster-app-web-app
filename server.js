@@ -1,10 +1,13 @@
 import "dotenv/config";
 import express from "express";
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { FAQ, systemPrompt } from "./faq.js";
 
 const PORT = process.env.PORT || 3000;
-const MODEL = process.env.MODEL || "claude-haiku-5-5";
+const MODEL = process.env.MODEL || "gpt-5.4-mini";
+// Reasoning effort for reasoning models (none|minimal|low|medium|high). Set empty for non-reasoning models (e.g. gpt-4.1-mini).
+const EFFORT = process.env.REASONING_EFFORT ?? "low";
+const MAX_OUTPUT = Number(process.env.MAX_OUTPUT_TOKENS) || 1200; // includes reasoning tokens
 const ALLOWED = (process.env.ALLOWED_ORIGINS || "").split(",").map(s => s.trim()).filter(Boolean);
 const MAX_TURNS = 12;          // messages kept per request
 const MAX_CHARS = 1000;        // per user message
@@ -39,7 +42,7 @@ function limited(ip) {
   return n > RATE.max;
 }
 
-const client = process.env.ANTHROPIC_API_KEY ? new Anthropic() : null;
+const client = process.env.OPENAI_API_KEY ? new OpenAI() : null;
 const SYSTEM = systemPrompt();
 
 app.get("/api/faq", (_req, res) => {
@@ -60,14 +63,19 @@ app.post("/api/chat", async (req, res) => {
   while (messages.length && messages[0].role !== "user") messages.shift();
   if (!messages.length || messages.at(-1).role !== "user") return res.status(400).json({ error: "last message must be from user" });
 
-  if (!client) return res.status(503).json({ error: "Assistant not configured (missing ANTHROPIC_API_KEY)." });
+  if (!client) return res.status(503).json({ error: "Assistant not configured (missing OPENAI_API_KEY)." });
 
   try {
-    const r = await client.messages.create({ model: MODEL, max_tokens: 400, system: SYSTEM, messages });
-    const text = r.content.filter(b => b.type === "text").map(b => b.text).join("").trim();
+    const r = await client.chat.completions.create({
+      model: MODEL,
+      max_completion_tokens: MAX_OUTPUT,
+      ...(EFFORT ? { reasoning_effort: EFFORT } : {}),
+      messages: [{ role: "developer", content: SYSTEM }, ...messages],
+    });
+    const text = (r.choices[0]?.message?.content || "").trim();
     res.json({ reply: text || "I don't have that information. The MedRoster team can help." });
   } catch (e) {
-    console.error("Anthropic error:", e?.status, e?.message);
+    console.error("OpenAI error:", e?.status, e?.message);
     res.status(502).json({ error: "The assistant is unavailable right now. Please try again." });
   }
 });
